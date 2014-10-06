@@ -31,9 +31,9 @@ class ComtradeApi:
     
     
     """
-    def __init__(self):
+    def __init__(self,ctry_codes_path="UN Comtrade Country List.csv"):
         #load the country codes
-        self._ctry_codes=pd.read_csv("UN Comtrade Country List.csv")
+        self._ctry_codes=pd.read_csv(ctry_codes_path)
         self._ctry_codes=self._ctry_codes.ix[self._ctry_codes['End Valid Year']>2012]
         # Remove NES and other areas
         #World
