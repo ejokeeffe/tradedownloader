@@ -74,6 +74,20 @@ class ComtradeApi:
         self._saved_queries.freq=self._saved_queries.freq.astype(pd.np.str)
         self._saved_queries.querystring=self._saved_queries.querystring.astype(pd.np.str)
         
+    #---------------------------------
+    #
+    # Call this to get data
+    # 
+    # @param comcodes - array/list of HS country codes as strings
+    # @param reporter - array/list of comtrade countries as list or use 'all' for
+    # all countries
+    # @param partner - same as above
+    # @param years -array of years as integers
+    # @param freq - 'A' or 'M' for year or monthly data respectively
+    # @param rg='1' for imports and '2' for exports - only tested for imports
+    # @param fmt='json' - default
+    #@param rowmax=50000. No reason to change this. This is the max value.
+    #----------------------------------
     def getComtradeData(self,comcodes=['1201'],reporter=['all'],partner=['all'],\
         years=[2012],freq='A',rg=['1'],fmt='json',rowmax=50000):
         
@@ -191,7 +205,7 @@ class ComtradeApi:
             #Only return wanted commodity codes
             df=df.ix[df.cmdCode.isin([int(numeric_string) for numeric_string in comcodes])]
             if freq=='A':
-                    df_base=df_base.ix[df_base.period.isin(filter_years)]
+                    df=df.ix[df.period.isin(filter_years)]
             return df   
         else:
             s="%s&p=%s"%(s,"%2C".join(partner))
