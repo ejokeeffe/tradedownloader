@@ -12,7 +12,7 @@ Usage
 =====
 API details are shown here: http://comtrade.un.org/data/doc/api/
 Most notably, there is a rate limit of 1 request per second, 100 requests per hour.
-Note that the api may change in future - please don't abuse the api. The purpose of this code is to prevent unnecessary calls to the api. 
+Note that the api may change in future - please don't abuse the api. The purpose of this code is to prevent unnecessary calls to the api, not to aggregate all the comtrade data (they have a strict policy on redistribution also - http://comtrade.un.org/db/help/PolicyOnUseAndRedissemination.pdf)
 
 
 
