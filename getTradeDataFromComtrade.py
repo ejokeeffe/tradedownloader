@@ -20,6 +20,7 @@ import numpy
 
 
 class ComtradeApi:
+    _source_folder=""
     _url='http://comtrade.un.org/api/get?'
     _ctry_codes=[]
     _max_partners=5
@@ -31,7 +32,8 @@ class ComtradeApi:
     
     
     """
-    def __init__(self,ctry_codes_path="UN Comtrade Country List.csv"):
+    def __init__(self,ctry_codes_path="UN Comtrade Country List.csv",fld=""):
+        self._source_folder=fld
         #load the country codes
         self._ctry_codes=pd.read_csv(ctry_codes_path)
         self._ctry_codes=self._ctry_codes.ix[self._ctry_codes['End Valid Year']>2012]
@@ -64,7 +66,7 @@ class ComtradeApi:
         self._ctry_codes=self._ctry_codes.ix[pd.isnull(self._ctry_codes['ISO2-digit Alpha'])==False]
         self._ctry_codes=self._ctry_codes.ix[pd.isnull(self._ctry_codes['ISO3-digit Alpha'])==False]
         
-        saved_queries_fname=join("saved_queries.csv")
+        saved_queries_fname=join(self._source_folder,"saved_queries.csv")
         if (os.path.isfile(saved_queries_fname)):
             self._saved_queries=pd.read_csv(saved_queries_fname)
         else:
@@ -127,7 +129,7 @@ class ComtradeApi:
                         load_files.append(fname)
             load_files=numpy.unique(load_files)
             for fname in load_files:
-                fname=join("%d.csv"%fname)
+                fname=join(self._source_folder,"%d.csv"%fname)
                 df_new=pd.read_csv(fname)
                 #only keep current year
                 if len(df_base)==0:
@@ -171,7 +173,8 @@ class ComtradeApi:
                         df=df.append(self.getComtradeData(comcodes=comcodes,reporter=reporter,partner=sub_partners,\
                             years=years[start_year:end_year],freq=freq,rg=rg,fmt=fmt,rowmax=rowmax))
                         #if start_val>40:
-                        #    break
+                        #break
+                #break
             
              #save this query to disk
             id=0
@@ -179,32 +182,40 @@ class ComtradeApi:
                 id =0
             else:
                 id=max(self._saved_queries.id.values)+1            
-            print "new id:%d" %id
-            for yr in years:
-                for com in comcodes:
-                    
-                    df_new=pd.DataFrame({'id':[id],'querystring':[s],\
-                        'comcode':[com],'year':[yr],'freq':[freq]})
-                    self._saved_queries=self._saved_queries.append(df_new)
-            #unencode from unicode
             
-            df.rtTitle=df.rtTitle.apply(lambda x: \
-                unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
-            df.ptTitle=df.ptTitle.apply(lambda x: \
-                unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
-            self._working_df=df
-            #write to file
-            self._saved_queries.to_csv(join("saved_queries.csv"),index=None)
-            self._working_df=df
-            df.to_csv(join("%d.csv"%id),index=None)
+            #print df.head()
+            if len(df)>0:
+                print "new id:%d" %id
+                for yr in years:
+                    for com in comcodes:
+                        
+                        df_new=pd.DataFrame({'id':[id],'querystring':[s],\
+                            'comcode':[com],'year':[yr],'freq':[freq]})
+                        self._saved_queries=self._saved_queries.append(df_new)
+                #unencode from unicode
+                
+                df.rtTitle=df.rtTitle.apply(lambda x: \
+                    unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
+                df.ptTitle=df.ptTitle.apply(lambda x: \
+                    unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
+                self._working_df=df
+                #write to file
+                self._saved_queries.to_csv(join(self._source_folder,\
+                    "saved_queries.csv"),index=None)
+                self._working_df=df
+                df.to_csv(join(self._source_folder,"%d.csv"%id),index=None)
         
             if len(df_base)>0:
-                df.append(df_base)
+                #print df_base.head()
+                df=df.append(df_base)
                 ##keep unique rows
-                df.drop_duplicates(inplace=True)
+                #print df.head()
+                if len(df)>0:
+                    df.drop_duplicates(inplace=True)
             #Only return wanted commodity codes
-            df=df.ix[df.cmdCode.isin([int(numeric_string) for numeric_string in comcodes])]
-            if freq=='A':
+            if len(df)>0:
+                df=df.ix[df.cmdCode.isin([int(numeric_string) for numeric_string in comcodes])]
+                if freq=='A':
                     df=df.ix[df.period.isin(filter_years)]
             return df   
         else:
