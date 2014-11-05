@@ -23,6 +23,7 @@ class ComtradeApi:
     _source_folder=""
     _url='http://comtrade.un.org/api/get?'
     _ctry_codes=[]
+    _ctry_alt_names=[]
     _max_partners=5
     _max_years=5
     _last_call_time=0
@@ -35,7 +36,7 @@ class ComtradeApi:
     def __init__(self,ctry_codes_path="UN Comtrade Country List.csv",fld=""):
         self._source_folder=fld
         #load the country codes
-        self._ctry_codes=pd.read_csv(ctry_codes_path)
+        self._ctry_codes=pd.read_csv(join(fld,ctry_codes_path),keep_default_na=False)
         self._ctry_codes=self._ctry_codes.ix[self._ctry_codes['End Valid Year']>2012]
         # Remove NES and other areas
         #World
@@ -65,6 +66,10 @@ class ComtradeApi:
         #Finally remove where the iso codes are not available
         self._ctry_codes=self._ctry_codes.ix[pd.isnull(self._ctry_codes['ISO2-digit Alpha'])==False]
         self._ctry_codes=self._ctry_codes.ix[pd.isnull(self._ctry_codes['ISO3-digit Alpha'])==False]
+        
+        #now the country code alternative names
+        self._ctry_alt_names=pd.read_csv(join(fld,"country_alternative_names.csv"),\
+            keep_default_na=False)
         
         saved_queries_fname=join(self._source_folder,"saved_queries.csv")
         if (os.path.isfile(saved_queries_fname)):
