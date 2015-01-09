@@ -17,6 +17,8 @@ import os
 import time
 import unicodedata
 import numpy
+import datetime
+import sys
 
 
 class ComtradeApi:
@@ -28,6 +30,9 @@ class ComtradeApi:
     _max_years=5
     _last_call_time=0
     _working_df=[]
+    calls_in_hour=0
+    first_call=datetime.datetime.now()
+    max_calls=100
     """
     Pure api call, no updating of a database
     
@@ -96,7 +101,7 @@ class ComtradeApi:
     #@param rowmax=50000. No reason to change this. This is the max value.
     #----------------------------------
     def getComtradeData(self,comcodes=['1201'],reporter=['all'],partner=['all'],\
-        years=[2012],freq='A',rg=['1'],fmt='json',rowmax=50000):
+        years=[2012],freq='A',rg=['1'],fmt='json',rowmax=50000,show_progress=True):
         
         
         #build string
@@ -170,13 +175,22 @@ class ComtradeApi:
                     sub_partners=self._ctry_codes.ctyCode.values[start_val:end_val]
                     sub_partners=[str(com) for com in sub_partners]
                     #print sub_partners
-                    if len(df)==0:
-                        df=self.getComtradeData(comcodes=comcodes,reporter=reporter,partner=sub_partners,\
+                    new_data=self.getComtradeData(comcodes=comcodes,reporter=reporter,partner=sub_partners,\
                         years=years[start_year:end_year],freq=freq,rg=rg,fmt=fmt,rowmax=rowmax)
+                    if len(df)==0:
+                        df=new_data
                     else:
                         #pass
-                        df=df.append(self.getComtradeData(comcodes=comcodes,reporter=reporter,partner=sub_partners,\
-                            years=years[start_year:end_year],freq=freq,rg=rg,fmt=fmt,rowmax=rowmax))
+                        try:
+                            df=df.append(new_data)
+                        except:
+                            print "Error trying to append new service call data"
+                            print "Appending..."
+                            print new_data
+                            print ""
+                            print ""
+                            print "..to.."
+                            print df.head()
                         #if start_val>40:
                         #break
                 #break
@@ -230,8 +244,33 @@ class ComtradeApi:
         s="%s&fmt=%s"%(s,fmt)
         s="%s&max=%d"%(s,rowmax)
         s="%s&head=M"%(s)
+        
+        ##first we need to figure out if we can do the call - we may have 
+        #exceeded our allowable calls
+        if (ComtradeApi.first_call<datetime.datetime.now()+datetime.timedelta(hours=-1)):
+            #we've waiting long enough
+            ComtradeApi.first_call=datetime.datetime.now
+            ComtradeApi.calls_in_hour=0
+        else:
+            #we're within time, so check how many we have left
+            if (ComtradeApi.calls_in_hour+1<ComtradeApi.max_calls):
+                if show_progress:
+                    print "you've made %d calls this hour, %d left"%\
+                        (ComtradeApi.calls_in_hour+1,\
+                        ComtradeApi.max_calls-ComtradeApi.calls_in_hour-1)
+                ComtradeApi.calls_in_hour+=1
+            else:
+                #Need to wait for an hour
+                print "You've exceeded the max calls in an hour, so now you'll have to wait until..."
+                waiting_time=ComtradeApi.first_call+datetime.timedelta(hours=1)
+                print waiting_time
+                sys.stdout.flush()
+                time.sleep(60*waiting_time.minute+waiting_time.second)
+                ComtradeApi.first_call=datetime.datetime.now
+                ComtradeApi.calls_in_hour=0
         #print "Doing an api call"
-        print s
+        if show_progress:
+            print s
         waiting_time=round(time.time() * 1000)-self._last_call_time
         if (waiting_time<1000):
             #print waiting_time
@@ -239,9 +278,18 @@ class ComtradeApi:
             time.sleep(float(1000-waiting_time)/1000)
         r=requests.get(r'%s'%(s))
         self._last_call_time = round(time.time() * 1000.0)
-        #print self._last_call_time       
-        data=r.json()
+        #print self._last_call_time   
+        try:
+            data=r.json()
+        except:
+            print "No json object to be parsed"
+            print "Trying running the string below in your browser -is there an error?"            
+            print "%s"%s
+            print "return from server:"
+            print r.text
+            return []
         df=pd.DataFrame(data['dataset'])
-        print "Returned rows: %d" %df.shape[0]
+        if show_progress:
+            print "Returned rows: %d" %df.shape[0]
 
         return df
