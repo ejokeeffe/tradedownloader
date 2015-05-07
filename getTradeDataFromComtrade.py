@@ -19,6 +19,7 @@ import unicodedata
 import numpy
 import datetime
 import sys
+from os.path import isfile
 
 
 class ComtradeApi:
@@ -43,7 +44,20 @@ class ComtradeApi:
         #load the country codes
         self._ctry_codes=pd.read_csv(join(fld,ctry_codes_path),keep_default_na=False)
         self._ctry_codes=self._ctry_codes.ix[self._ctry_codes['End Valid Year']>2012]
+        #check to make sure there are correct fields
+        if ('ISO2-digit Alpha' not in self._ctry_codes.columns) | \
+            ('ISO3-digit Alpha' not in self._ctry_codes.columns):
+            print("----------------------------")
+            print("                 ")
+            print "Check format of %s file"%ctry_codes_path
+            print "It appears to be missing fields"
+            print("                 ")
+            print("--------------------------") 
+            return 
         # Remove NES and other areas
+        #check the field name for the country code
+        if "Country Code" in self._ctry_codes.columns:
+            self._ctry_codes['ctyCode']=self._ctry_codes['Country Code']
         #World
         self._ctry_codes=self._ctry_codes.ix[self._ctry_codes['ctyCode']!=0]
         #EU-27
@@ -73,6 +87,13 @@ class ComtradeApi:
         self._ctry_codes=self._ctry_codes.ix[pd.isnull(self._ctry_codes['ISO3-digit Alpha'])==False]
         
         #now the country code alternative names
+        #if this doesn't exist then create it
+        if not isfile(join(fld,"country_alternative_names.csv")):
+            #doesn't exist so create it
+            self._ctry_alt_names=pd.DataFrame({'ISO2-digit Alpha':['KR'],\
+                'Aka':['South Korea']})
+            #write this to file
+            self._ctry_alt_names.to_csv(join(fld,"country_alternative_names.csv"),index=None)
         self._ctry_alt_names=pd.read_csv(join(fld,"country_alternative_names.csv"),\
             keep_default_na=False)
         
@@ -167,7 +188,7 @@ class ComtradeApi:
             #can't pass both as all, iterate through country codes and add each
             #Need to split into calls of 
             for start_val in range(0,len(self._ctry_codes.ctyCode),self._max_partners):
-                print "Running %d of %d"%(start_val,len(self._ctry_codes.ctyCode))
+                print "Running %d of %d subqueries"%(start_val,len(self._ctry_codes.ctyCode))
                 for start_year in range(0,len(years),self._max_years):
                     end_val=min([start_val+self._max_partners,len(self._ctry_codes.ctyCode)])
                     end_year=min([start_year+self._max_years,len(years)])
@@ -182,10 +203,11 @@ class ComtradeApi:
                     else:
                         #pass
                         try:
+                            #print "appending..."
                             df=df.append(new_data)
                         except:
                             print "Error trying to append new service call data"
-                            print "Appending..."
+                            #print "Appending..."
                             print new_data
                             print ""
                             print ""
@@ -194,7 +216,8 @@ class ComtradeApi:
                         #if start_val>40:
                         #break
                 #break
-            
+            print "Have the merged dataset"
+            print df.head()
              #save this query to disk
             id=0
             if (len(self._saved_queries.id)==0):
@@ -233,9 +256,17 @@ class ComtradeApi:
                     df.drop_duplicates(inplace=True)
             #Only return wanted commodity codes
             if len(df)>0:
+                #ensure cmdCode is an integer
+                df.cmdCode=df.cmdCode.astype(pd.np.int)
+                df.period=df.period.astype(pd.np.int)
+                #print df.head()
+                #print comcodes
+                #print filter_years
+                #print df.dtypes
                 df=df.ix[df.cmdCode.isin([int(numeric_string) for numeric_string in comcodes])]
                 if freq=='A':
                     df=df.ix[df.period.isin(filter_years)]
+                #print df.head()
             return df   
         else:
             s="%s&p=%s"%(s,"%2C".join(partner))
