@@ -45,3 +45,7 @@ How to Install
 1. clone or download the files
 2. Run test.py to ensure it works. If it doesn't, check all the modules required are installed, otherwise get in touch - it may be a bug. Note that the test query takes a few minutes to run (set show_progress=True in teh function to switch off the verbose progress info), as we are limited to one web service call per second. Also, we are limited to 5 countries for each of partner and reporter. If you want to do a subset, then you can alter the comtrade country codes file or pass in a list of countries.
 3. That's it. Copy the test.py code into your own python files or extend it. 
+
+Notes
+=====
+1. Only queries that request partner=all and reporter=all are saved. 
