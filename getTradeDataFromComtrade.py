@@ -20,6 +20,7 @@ import numpy
 import datetime
 import sys
 from os.path import isfile
+import logging
 
 
 class ComtradeApi:
@@ -42,17 +43,17 @@ class ComtradeApi:
     def __init__(self,ctry_codes_path="UN Comtrade Country List.csv",fld=""):
         self._source_folder=fld
         #load the country codes
-        self._ctry_codes=pd.read_csv(join(fld,ctry_codes_path),keep_default_na=False)
+        self._ctry_codes=pd.read_csv(join(fld,ctry_codes_path),keep_default_na=False, encoding = "ISO-8859-1")
         self._ctry_codes=self._ctry_codes.ix[self._ctry_codes['End Valid Year']>2012]
         #check to make sure there are correct fields
         if ('ISO2-digit Alpha' not in self._ctry_codes.columns) | \
             ('ISO3-digit Alpha' not in self._ctry_codes.columns):
-            print("----------------------------")
-            print("                 ")
-            print "Check format of %s file"%ctry_codes_path
-            print "It appears to be missing fields"
-            print("                 ")
-            print("--------------------------") 
+            logging.warning("----------------------------")
+            logging.warning("                 ")
+            logging.warning("Check format of %s file"%ctry_codes_path)
+            logging.warning("It appears to be missing fields")
+            logging.warning("                 ")
+            logging.warning("--------------------------") 
             return 
         # Remove NES and other areas
         #check the field name for the country code
@@ -148,7 +149,7 @@ class ComtradeApi:
                 for com in comcodes:
                     if len(self._saved_queries.ix[(self._saved_queries.comcode==com) &\
                         (self._saved_queries.year==yr)&(self._saved_queries.freq==freq)])==0:
-                            print "Can't find %d and %s" %(yr,com)
+                            logging.info("Can't find %d and %s" %(yr,com))
                             retain.append(yr)
                             haveit=False
                             break
@@ -188,11 +189,11 @@ class ComtradeApi:
             #can't pass both as all, iterate through country codes and add each
             #Need to split into calls of 
             for start_val in range(0,len(self._ctry_codes.ctyCode),self._max_partners):
-                print "Running %d of %d subqueries"%(start_val,len(self._ctry_codes.ctyCode))
+                logging.info("Running %d of %d subqueries"%(start_val,len(self._ctry_codes.ctyCode)))
                 for start_year in range(0,len(years),self._max_years):
                     end_val=min([start_val+self._max_partners,len(self._ctry_codes.ctyCode)])
                     end_year=min([start_year+self._max_years,len(years)])
-                    print "%d,%d"%(start_year,end_year)
+                    logging.info("%d,%d"%(start_year,end_year))
                     sub_partners=self._ctry_codes.ctyCode.values[start_val:end_val]
                     sub_partners=[str(com) for com in sub_partners]
                     #print sub_partners
@@ -205,19 +206,17 @@ class ComtradeApi:
                         try:
                             #print "appending..."
                             df=df.append(new_data)
-                        except:
-                            print "Error trying to append new service call data"
+                        except e:
+                            logging.warning( "Error trying to append new service call data")
+                            exception_name, exception_value = sys.exc_info()[:2]
+                            raise   # or don't -- it's up to you
                             #print "Appending..."
-                            print new_data
-                            print ""
-                            print ""
-                            print "..to.."
-                            print df.head()
+                            
                         #if start_val>40:
                         #break
                 #break
-            print "Have the merged dataset"
-            print df.head()
+            logging.info("Have the merged dataset")
+            
              #save this query to disk
             id=0
             if (len(self._saved_queries.id)==0):
@@ -227,7 +226,7 @@ class ComtradeApi:
             
             #print df.head()
             if len(df)>0:
-                print "new id:%d" %id
+                logging.info("new id:%d" %id)
                 for yr in years:
                     for com in comcodes:
                         
@@ -285,23 +284,20 @@ class ComtradeApi:
         else:
             #we're within time, so check how many we have left
             if (ComtradeApi.calls_in_hour+1<ComtradeApi.max_calls):
-                if show_progress:
-                    print "you've made %d calls this hour, %d left"%\
+                logging.info("you've made %d calls this hour, %d left"%\
                         (ComtradeApi.calls_in_hour+1,\
-                        ComtradeApi.max_calls-ComtradeApi.calls_in_hour-1)
+                        ComtradeApi.max_calls-ComtradeApi.calls_in_hour-1))
                 ComtradeApi.calls_in_hour+=1
             else:
                 #Need to wait for an hour
-                print "You've exceeded the max calls in an hour, so now you'll have to wait until..."
+                logging.warning("You've exceeded the max calls in an hour, so now you'll have to wait until {}".format(waiting_time))
                 waiting_time=ComtradeApi.first_call+datetime.timedelta(hours=1)
-                print waiting_time
                 sys.stdout.flush()
                 time.sleep(60*waiting_time.minute+waiting_time.second)
                 ComtradeApi.first_call=datetime.datetime.now
                 ComtradeApi.calls_in_hour=0
         #print "Doing an api call"
-        if show_progress:
-            print s
+        logging.info(s)
         waiting_time=round(time.time() * 1000)-self._last_call_time
         if (waiting_time<1000):
             #print waiting_time
@@ -313,14 +309,15 @@ class ComtradeApi:
         try:
             data=r.json()
         except:
-            print "No json object to be parsed"
-            print "Trying running the string below in your browser -is there an error?"            
-            print "%s"%s
-            print "return from server:"
-            print r.text
+            logging.warning( "No json object to be parsed")
+            logging.warning( "Trying running the string below in your browser -is there an error?"  )          
+            logging.warning( "%s"%s)
+            exception_name, exception_value = sys.exc_info()[:2]
+            logging.warning("{} {}".format(exception_name,exception_value))
+            raise
+            
             return []
         df=pd.DataFrame(data['dataset'])
-        if show_progress:
-            print "Returned rows: %d" %df.shape[0]
+        logging.info( "Returned rows: %d" %df.shape[0])
 
         return df
