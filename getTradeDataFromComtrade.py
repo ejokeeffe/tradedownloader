@@ -34,7 +34,7 @@ class ComtradeApi:
     _working_df=[]
     calls_in_hour=0
     first_call=datetime.datetime.now()
-    max_calls=100
+    max_calls=95
     """
     Pure api call, no updating of a database
     
@@ -123,7 +123,7 @@ class ComtradeApi:
     #@param rowmax=50000. No reason to change this. This is the max value.
     #----------------------------------
     def getComtradeData(self,comcodes=['1201'],reporter=['all'],partner=['all'],\
-        years=[2012],freq='A',rg=['1'],fmt='json',rowmax=50000,show_progress=True):
+        years=[2012],freq='A',rg=['1'],fmt='json',rowmax=50000):
         
         
         #build string
@@ -149,7 +149,7 @@ class ComtradeApi:
                 for com in comcodes:
                     if len(self._saved_queries.ix[(self._saved_queries.comcode==com) &\
                         (self._saved_queries.year==yr)&(self._saved_queries.freq==freq)])==0:
-                            logging.info("Can't find %d and %s" %(yr,com))
+                            logging.info("Can't find %d and %s from local database. These will be retrieved from the Comtrade API." %(yr,com))
                             retain.append(yr)
                             haveit=False
                             break
@@ -158,7 +158,11 @@ class ComtradeApi:
                     for com in comcodes:
                         fname=self._saved_queries.id.ix[(self._saved_queries.comcode==com) &\
                             (self._saved_queries.year==yr)&(self._saved_queries.freq==freq)].values[0]
-                        load_files.append(fname)
+                        #only load it if fname if >0
+                        if (fname>-1):
+                            load_files.append(fname)
+                        else:
+                            logging.info("{} for year {} and freq {} not available in comtrade. Fname: {}".format(com,yr,freq,fname))
             load_files=numpy.unique(load_files)
             for fname in load_files:
                 fname=join(self._source_folder,"%d.csv"%fname)
@@ -171,6 +175,13 @@ class ComtradeApi:
                     df_base.drop_duplicates(inplace=True)
                     #Remove the year from years
                     #for_removal.append(years.index(yr))
+
+                #Now remove years and coms outside the requested
+                #logging.info(df_base.shape)
+                #df_base=df_base.ix[df_base.yr.apply(lambda x: x in years)].copy()
+                #logging.info(df_base.shape)
+                #df_base=df_base.ix[df_base.cmdCode.apply(lambda x: x in [int(x) for x in comcodes])].copy()
+                #logging.info(df_base.shape)
     
             filter_years=years
             years=retain
@@ -181,31 +192,32 @@ class ComtradeApi:
                 #Only return wanted commodity codes
                 #print df_base.head()
                 df_base=df_base.ix[df_base.cmdCode.isin([int(numeric_string) for numeric_string in comcodes])]
-                if freq=='A':
-                    df_base=df_base.ix[df_base.period.isin(filter_years)]
+                #if freq=='A':
+                df_base=df_base.ix[df_base.period.isin(filter_years)]
                     #df_base=df_base.ix[df_base.period.isin(years)]
                 return df_base
             df=[]
             #can't pass both as all, iterate through country codes and add each
             #Need to split into calls of 
-            for start_val in range(0,len(self._ctry_codes.ctyCode),self._max_partners):
-                logging.info("Running %d of %d subqueries"%(start_val,len(self._ctry_codes.ctyCode)))
-                for start_year in range(0,len(years),self._max_years):
+            for start_year in range(0,len(years),self._max_years):
+                df_cur_years=[]
+                for start_val in range(0,len(self._ctry_codes.ctyCode),self._max_partners):
                     end_val=min([start_val+self._max_partners,len(self._ctry_codes.ctyCode)])
                     end_year=min([start_year+self._max_years,len(years)])
-                    logging.info("%d,%d"%(start_year,end_year))
+                    #logging.info("%d,%d"%(start_year,end_year))
                     sub_partners=self._ctry_codes.ctyCode.values[start_val:end_val]
                     sub_partners=[str(com) for com in sub_partners]
+                    logging.debug("Running {} of {} subqueries for year(s) ".format(start_val,len(self._ctry_codes.ctyCode),years[start_year:end_year]))
                     #print sub_partners
                     new_data=self.getComtradeData(comcodes=comcodes,reporter=reporter,partner=sub_partners,\
                         years=years[start_year:end_year],freq=freq,rg=rg,fmt=fmt,rowmax=rowmax)
-                    if len(df)==0:
-                        df=new_data
+                    if len(df_cur_years)==0:
+                        df_cur_years=new_data
                     else:
                         #pass
                         try:
                             #print "appending..."
-                            df=df.append(new_data)
+                            df_cur_years=df_cur_years.append(new_data)
                         except e:
                             logging.warning( "Error trying to append new service call data")
                             exception_name, exception_value = sys.exc_info()[:2]
@@ -214,37 +226,54 @@ class ComtradeApi:
                             
                         #if start_val>40:
                         #break
-                #break
-            logging.info("Have the merged dataset")
-            
-             #save this query to disk
-            id=0
-            if (len(self._saved_queries.id)==0):
-                id =0
-            else:
-                id=max(self._saved_queries.id.values)+1            
-            
-            #print df.head()
-            if len(df)>0:
-                logging.info("new id:%d" %id)
-                for yr in years:
+                #Now save this call to file
+                #save this query to disk
+                id=0
+                if len(df_cur_years)==0:
+                    id=-1
+                elif (len(self._saved_queries.id)==0):
+                    id =0
+                else:
+                    id=max(self._saved_queries.id.values)+1
+                #if len(df)>0:
+                logging.info("Writing {}/{} to file with id:{}".format(comcodes,years[start_year:end_year],id))
+                for yr in years[start_year:end_year]:
                     for com in comcodes:
-                        
                         df_new=pd.DataFrame({'id':[id],'querystring':[s],\
                             'comcode':[com],'year':[yr],'freq':[freq]})
                         self._saved_queries=self._saved_queries.append(df_new)
-                #unencode from unicode
-                
-                df.rtTitle=df.rtTitle.apply(lambda x: \
-                    unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
-                df.ptTitle=df.ptTitle.apply(lambda x: \
-                    unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
-                self._working_df=df
-                #write to file
                 self._saved_queries.to_csv(join(self._source_folder,\
-                    "saved_queries.csv"),index=None)
-                self._working_df=df
-                df.to_csv(join(self._source_folder,"%d.csv"%id),index=None)
+                        "saved_queries.csv"),index=None)
+                if id>-1:
+                    #unencode from unicode
+                    df_cur_years.rtTitle=df_cur_years.rtTitle.apply(lambda x: \
+                        unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
+                    df_cur_years.ptTitle=df_cur_years.ptTitle.apply(lambda x: \
+                        unicodedata.normalize('NFKD', x).encode('ascii','ignore'))
+                    #self._working_df=df_cur_years
+                    #write to file
+                    
+                    #self._working_df=df_cur_years
+                    df_cur_years.to_csv(join(self._source_folder,"%d.csv"%id),index=None)
+
+                    #Now merge this with df
+                    if len(df)==0:
+                        df=df_cur_years
+                    else:
+                        try:
+                                #print "appending..."
+                                df=df.append(df_cur_years)
+                        except e:
+                            logging.warning( "Error trying to append. Years: {}. Com: {}".format(years[start_year:end_year],comcodes))
+                            exception_name, exception_value = sys.exc_info()[:2]
+                            raise
+            logging.debug("Have the merged dataset")
+            
+             
+                        
+            
+            #print df.head()
+            
         
             if len(df_base)>0:
                 #print df_base.head()
@@ -263,8 +292,8 @@ class ComtradeApi:
                 #print filter_years
                 #print df.dtypes
                 df=df.ix[df.cmdCode.isin([int(numeric_string) for numeric_string in comcodes])]
-                if freq=='A':
-                    df=df.ix[df.period.isin(filter_years)]
+                #if freq=='A':
+                df=df.ix[df.yr.isin(filter_years)]
                 #print df.head()
             return df   
         else:
@@ -290,11 +319,13 @@ class ComtradeApi:
                 ComtradeApi.calls_in_hour+=1
             else:
                 #Need to wait for an hour
-                logging.warning("You've exceeded the max calls in an hour, so now you'll have to wait until {}".format(waiting_time))
-                waiting_time=ComtradeApi.first_call+datetime.timedelta(hours=1)
+                
+                waiting_time=datetime.timedelta(hours=1.05)
+                logging.warning("You've exceeded the max calls in an hour, so now you'll have to wait until {}".format(datetime.datetime.now() +waiting_time))
                 sys.stdout.flush()
-                time.sleep(60*waiting_time.minute+waiting_time.second)
-                ComtradeApi.first_call=datetime.datetime.now
+                time.sleep(waiting_time.total_seconds())
+                logging.debug("Stepping out of waiting. Time: {}".format(datetime.datetime.now()))
+                ComtradeApi.first_call=datetime.datetime.now()
                 ComtradeApi.calls_in_hour=0
         #print "Doing an api call"
         logging.info(s)
@@ -310,7 +341,8 @@ class ComtradeApi:
             data=r.json()
         except:
             logging.warning( "No json object to be parsed")
-            logging.warning( "Trying running the string below in your browser -is there an error?"  )          
+            logging.warning( "Trying running the string below in your browser -is there an error?"  )  
+            logging.warning("return string: {}".format(r))       
             logging.warning( "%s"%s)
             exception_name, exception_value = sys.exc_info()[:2]
             logging.warning("{} {}".format(exception_name,exception_value))
