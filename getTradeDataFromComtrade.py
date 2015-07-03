@@ -185,18 +185,31 @@ class ComtradeApi:
     
             filter_years=years
             years=retain
+            #logging.debug(years)
             if (len(years)==0):
                 #print "filled up so jumping out"
                 #jump out
                 df_base.drop_duplicates(inplace=True)
                 #Only return wanted commodity codes
-                #print df_base.head()
+                
                 df_base=df_base.ix[df_base.cmdCode.isin([int(numeric_string) for numeric_string in comcodes])]
-                #if freq=='A':
-                df_base=df_base.ix[df_base.period.isin(filter_years)]
+                
+                if freq=='A':
+                    #logging.debug(df_base.head())
+                    df_base=df_base.ix[df_base.period.isin(filter_years)]
+                    df_trade['date']=[datetime.datetime(x,1,1) for x in df_trade.period]
+                if freq=='M':
+                    df_base['year']=[int(str(x)[:4]) for x in df_base.period.values ]
+                    df_base=df_base.ix[df_base.year.isin(filter_years)]
+                    df_base['date']=[datetime.datetime(int(str(x)[:4]),int(str(x)[4:]),1) for x in df_base.period]
+                    df_base.drop('year',inplace=True,axis=1)
+                #logging.debug(filter_years)
                     #df_base=df_base.ix[df_base.period.isin(years)]
+                #reset_index
+                df_base.reset_index(drop=True,inplace=True)
                 return df_base
             df=[]
+            #logging.debug(df_base.head())
             #can't pass both as all, iterate through country codes and add each
             #Need to split into calls of 
             for start_year in range(0,len(years),self._max_years):
