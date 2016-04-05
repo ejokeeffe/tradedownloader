@@ -5,7 +5,7 @@ Download trade data from Comtrade using the exposed Comtrade API.
 
 Requirements
 ============
-Python 2.7 (only tested on this version, it may work on others)
+Python 3 (only tested on this version, it may work on others)
 Pandas
 
 Usage
@@ -43,7 +43,7 @@ Comtrade country codes file for resolving country names. You can download this f
 How to Install
 =============
 1. clone or download the files
-2. Run test.py to ensure it works. If it doesn't, check all the modules required are installed, otherwise get in touch - it may be a bug. Note that the test query takes a few minutes to run (set show_progress=True in teh function to switch off the verbose progress info), as we are limited to one web service call per second. Also, we are limited to 5 countries for each of partner and reporter. If you want to do a subset, then you can alter the comtrade country codes file or pass in a list of countries.
+2. Run test.py to ensure it works. If it doesn't, check all the modules required are installed, otherwise get in touch - it may be a bug. Note that the test query takes a few minutes to run (import logging library and set level to DEBUG to output progress), as we are limited to one web service call per second. Also, we are limited to 5 countries for each of partner and reporter. If you want to do a subset, then you can alter the comtrade country codes file or pass in a list of countries.
 3. That's it. Copy the test.py code into your own python files or extend it. 
 
 Notes

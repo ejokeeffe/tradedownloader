@@ -197,7 +197,7 @@ class ComtradeApi:
                 if freq=='A':
                     #logging.debug(df_base.head())
                     df_base=df_base.ix[df_base.period.isin(filter_years)]
-                    df_trade['date']=[datetime.datetime(x,1,1) for x in df_trade.period]
+                    df_base['date']=[datetime.datetime(x,1,1) for x in df_base.period]
                 if freq=='M':
                     df_base['year']=[int(str(x)[:4]) for x in df_base.period.values ]
                     df_base=df_base.ix[df_base.year.isin(filter_years)]
@@ -321,7 +321,7 @@ class ComtradeApi:
         #exceeded our allowable calls
         if (ComtradeApi.first_call<datetime.datetime.now()+datetime.timedelta(hours=-1)):
             #we've waiting long enough
-            ComtradeApi.first_call=datetime.datetime.now
+            ComtradeApi.first_call=datetime.datetime.now()
             ComtradeApi.calls_in_hour=0
         else:
             #we're within time, so check how many we have left
