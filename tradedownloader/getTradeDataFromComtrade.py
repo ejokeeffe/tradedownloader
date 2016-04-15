@@ -402,3 +402,7 @@ class ComtradeApi:
         logging.info("Returned rows: %d" % df.shape[0])
 
         return df
+
+    @property
+    def ctry_codes(self):
+        return self._ctry_codes
