@@ -215,7 +215,7 @@ class ComtradeApi:
                 # Only return wanted commodity codes
 
                 df_base = df_base.ix[df_base.cmdCode.isin(
-                    [int(numeric_string) for numeric_string in comcodes])]
+                    [int(numeric_string) for numeric_string in comcodes])].copy()
 
                 if freq == 'A':
                     # logging.debug(df_base.head())
