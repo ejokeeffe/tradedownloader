@@ -9,4 +9,4 @@ import getTradeDataFromComtrade
 
 comapi=getTradeDataFromComtrade.ComtradeApi()
 df=comapi.getComtradeData()
-print df.head
+print(df.head)
