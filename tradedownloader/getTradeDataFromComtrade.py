@@ -382,7 +382,9 @@ class ComtradeApi:
             # print waiting_time
             #print("Sleeping for %.0f"%(1000-waiting_time))
             time.sleep(float(1000 - waiting_time) / 1000)
-        r = requests.get(r'%s' % (s))
+        # print(s)
+        # hitting issues with the certificate validation, so ignoring it for now
+        r = requests.get(r'%s' % (s),verify=False)
         self._last_call_time = round(time.time() * 1000.0)
         # print self._last_call_time
         try:
