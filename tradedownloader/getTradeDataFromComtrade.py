@@ -192,6 +192,7 @@ class ComtradeApi:
                 # only keep current year
                 if len(df_base) == 0:
                     df_base = df_new
+                    df_base.drop_duplicates(inplace=True)
                 else:
                     df_base = df_base.append(df_new)
                     df_base.drop_duplicates(inplace=True)
