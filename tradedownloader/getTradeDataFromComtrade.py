@@ -166,8 +166,8 @@ class ComtradeApi:
             load_files = []
             for yr in years:
                 haveit = True
-                logging.info(self._saved_queries.dtypes)
-                logging.info(self._saved_queries.head())
+                # logging.info(self._saved_queries.dtypes)
+                # logging.info(self._saved_queries.head())
                 for com in comcodes:
                     if len(self._saved_queries.ix[([float(x)==float(com) for x in self._saved_queries.comcode.values]) &
                                                   (self._saved_queries.year == yr) & (self._saved_queries.freq == freq)]) == 0:
