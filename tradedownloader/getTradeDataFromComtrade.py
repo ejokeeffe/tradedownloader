@@ -166,8 +166,10 @@ class ComtradeApi:
             load_files = []
             for yr in years:
                 haveit = True
+                logging.info(self._saved_queries.dtypes)
+                logging.info(self._saved_queries.head())
                 for com in comcodes:
-                    if len(self._saved_queries.ix[(self._saved_queries.comcode == com) &
+                    if len(self._saved_queries.ix[([float(x)==float(com) for x in self._saved_queries.comcode.values]) &
                                                   (self._saved_queries.year == yr) & (self._saved_queries.freq == freq)]) == 0:
                         logging.info(
                             "Can't find %d and %s from local database. These will be retrieved from the Comtrade API." % (yr, com))
@@ -177,8 +179,9 @@ class ComtradeApi:
                 if haveit == True:
                     # print "we have it"
                     for com in comcodes:
-                        fname = self._saved_queries.id.ix[(self._saved_queries.comcode == com) &
-                                                          (self._saved_queries.year == yr) & (self._saved_queries.freq == freq)].values[0]
+                        fname = self._saved_queries.id.ix[([float(x)==float(com) for x in self._saved_queries.comcode.values]) &
+                                                          (self._saved_queries.year == yr) & 
+                                                          (self._saved_queries.freq == freq)].values[0]
                         # only load it if fname if >0
                         if (fname > -1):
                             load_files.append(fname)
@@ -346,7 +349,7 @@ class ComtradeApi:
         else:
             s = "%s&p=%s" % (s, "%2C".join(partner))
         s = "%s&rg=%s" % (s, "%2C".join(rg))
-        s = "%s&cc=%s" % (s, "%2C".join(comcodes))
+        s = "%s&cc=%s" % (s, "%2C".join([str(int(x)) for x in comcodes]))
         s = "%s&fmt=%s" % (s, fmt)
         s = "%s&max=%d" % (s, rowmax)
         s = "%s&head=M" % (s)
