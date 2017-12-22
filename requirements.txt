@@ -3,4 +3,5 @@
 # scipy>=0.9
 
 requests
+pandas
 
