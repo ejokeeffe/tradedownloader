@@ -166,8 +166,10 @@ class ComtradeApi:
             load_files = []
             for yr in years:
                 haveit = True
+                # logging.info(self._saved_queries.dtypes)
+                # logging.info(self._saved_queries.head())
                 for com in comcodes:
-                    if len(self._saved_queries.ix[(self._saved_queries.comcode == com) &
+                    if len(self._saved_queries.ix[([float(x)==float(com) for x in self._saved_queries.comcode.values]) &
                                                   (self._saved_queries.year == yr) & (self._saved_queries.freq == freq)]) == 0:
                         logging.info(
                             "Can't find %d and %s from local database. These will be retrieved from the Comtrade API." % (yr, com))
@@ -177,8 +179,9 @@ class ComtradeApi:
                 if haveit == True:
                     # print "we have it"
                     for com in comcodes:
-                        fname = self._saved_queries.id.ix[(self._saved_queries.comcode == com) &
-                                                          (self._saved_queries.year == yr) & (self._saved_queries.freq == freq)].values[0]
+                        fname = self._saved_queries.id.ix[([float(x)==float(com) for x in self._saved_queries.comcode.values]) &
+                                                          (self._saved_queries.year == yr) & 
+                                                          (self._saved_queries.freq == freq)].values[0]
                         # only load it if fname if >0
                         if (fname > -1):
                             load_files.append(fname)
@@ -192,6 +195,7 @@ class ComtradeApi:
                 # only keep current year
                 if len(df_base) == 0:
                     df_base = df_new
+                    df_base.drop_duplicates(inplace=True)
                 else:
                     df_base = df_base.append(df_new)
                     df_base.drop_duplicates(inplace=True)
@@ -215,7 +219,7 @@ class ComtradeApi:
                 # Only return wanted commodity codes
 
                 df_base = df_base.ix[df_base.cmdCode.isin(
-                    [int(numeric_string) for numeric_string in comcodes])]
+                    [int(numeric_string) for numeric_string in comcodes])].copy()
 
                 if freq == 'A':
                     # logging.debug(df_base.head())
@@ -345,7 +349,7 @@ class ComtradeApi:
         else:
             s = "%s&p=%s" % (s, "%2C".join(partner))
         s = "%s&rg=%s" % (s, "%2C".join(rg))
-        s = "%s&cc=%s" % (s, "%2C".join(comcodes))
+        s = "%s&cc=%s" % (s, "%2C".join([str(int(x)) for x in comcodes]))
         s = "%s&fmt=%s" % (s, fmt)
         s = "%s&max=%d" % (s, rowmax)
         s = "%s&head=M" % (s)
@@ -382,7 +386,9 @@ class ComtradeApi:
             # print waiting_time
             #print("Sleeping for %.0f"%(1000-waiting_time))
             time.sleep(float(1000 - waiting_time) / 1000)
-        r = requests.get(r'%s' % (s))
+        # print(s)
+        # hitting issues with the certificate validation, so ignoring it for now
+        r = requests.get(r'%s' % (s),verify=False)
         self._last_call_time = round(time.time() * 1000.0)
         # print self._last_call_time
         try:
@@ -402,3 +408,7 @@ class ComtradeApi:
         logging.info("Returned rows: %d" % df.shape[0])
 
         return df
+
+    @property
+    def ctry_codes(self):
+        return self._ctry_codes
